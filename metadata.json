@@ -1,0 +1,6 @@
+{
+  "name": "Atelier Clothing Store",
+  "description": "متجر أزياء وملابس عصري بتصميم بسيط وفلاتر تفاعلية مع دعم كامل للغة العربية وعملة الدينار الجزائري (د.ج).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
