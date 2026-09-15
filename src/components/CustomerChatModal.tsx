@@ -264,7 +264,7 @@ export const CustomerChatModal: React.FC<CustomerChatModalProps> = ({
   return (
     <div 
       id="customer-chat-full-page"
-      className="fixed inset-0 z-50 flex flex-col w-full h-full min-h-screen overflow-hidden"
+      className="fixed inset-0 z-50 flex flex-col w-full h-dvh overflow-hidden"
       style={{
         backgroundColor: 'var(--theme-bg, #0e1117)',
         color: 'var(--theme-text, #f5f5f5)'
