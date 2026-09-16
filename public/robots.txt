@@ -3,4 +3,4 @@ Allow: /
 Disallow: /adminpanel
 Disallow: /api/
 
-Sitemap: https://loopix.work.gd/sitemap.xml
+Sitemap: https://www.loopix.work.gd/sitemap.xml
