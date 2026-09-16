@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 import 'dotenv/config';
@@ -683,6 +684,14 @@ app.get('/sitemap.xml', async (_req, res) => {
 // -------------------------------------------------------------
 // VITE SPA MIDDLEWARE / PRODUCTION SERVING
 // -------------------------------------------------------------
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 async function startServer() {
   try {
     await initDb();
@@ -699,9 +708,52 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    let indexTemplate = '';
+    try {
+      indexTemplate = fs.readFileSync(path.join(distPath, 'index.html'), 'utf-8');
+    } catch (err) {
+      console.error('Unable to read index.html from dist:', err);
+    }
+
+    // In-memory cache so we don't hit MongoDB on every page load
+    let cachedSettings: StoreSettingsData | null = null;
+    let cachedSettingsAt = 0;
+    const SETTINGS_CACHE_TTL_MS = 60 * 1000;
+
+    async function getCachedSettings(): Promise<StoreSettingsData> {
+      const now = Date.now();
+      if (cachedSettings && now - cachedSettingsAt < SETTINGS_CACHE_TTL_MS) {
+        return cachedSettings;
+      }
+      const store = await getStore();
+      cachedSettings = store.settings || DEFAULT_SETTINGS;
+      cachedSettingsAt = now;
+      return cachedSettings;
+    }
+
+    function renderIndex(settings: StoreSettingsData): string {
+      const storeName = settings.storeName?.trim() || 'لوبيكس';
+      const tagline = settings.storeTagline?.trim() || 'متجر أزياء وملابس عصري';
+      const title = `${storeName} - متجر الأزياء`;
+
+      return indexTemplate
+        .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
+        .replace(/(<meta name="description" content=")[^"]*(")/, `$1${escapeHtml(tagline)}$2`)
+        .replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${escapeHtml(title)}$2`)
+        .replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${escapeHtml(tagline)}$2`)
+        .replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escapeHtml(storeName)}$2`)
+        .replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escapeHtml(tagline)}$2`);
+    }
+
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    app.get('*', async (_req, res) => {
+      try {
+        const settings = await getCachedSettings();
+        res.type('html').send(renderIndex(settings));
+      } catch (err) {
+        console.error('Failed to inject SEO meta:', err);
+        res.sendFile(path.join(distPath, 'index.html'));
+      }
     });
   }
 
