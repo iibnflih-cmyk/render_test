@@ -634,6 +634,53 @@ app.delete('/api/chat/conversation/:clientId', requireAdmin, async (req, res) =>
 });
 
 // -------------------------------------------------------------
+// SEO: robots.txt & sitemap.xml
+// -------------------------------------------------------------
+const SITE_URL = process.env.SITE_URL || 'https://www.loopix.work.gd';
+
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain').send(
+    `User-agent: *\nAllow: /\nDisallow: /adminpanel\nDisallow: /api/\n\nSitemap: ${SITE_URL}/sitemap.xml\n`
+  );
+});
+
+app.get('/sitemap.xml', async (_req, res) => {
+  try {
+    const store = await getStore();
+    const now = new Date().toISOString();
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    // Homepage
+    xml += `  <url>\n`;
+    xml += `    <loc>${SITE_URL}/</loc>\n`;
+    xml += `    <lastmod>${now}</lastmod>\n`;
+    xml += `    <changefreq>daily</changefreq>\n`;
+    xml += `    <priority>1.0</priority>\n`;
+    xml += `  </url>\n`;
+
+    // Category pages (filtered via query params, but still indexable)
+    if (store.categories && store.categories.length > 0) {
+      for (const cat of store.categories) {
+        xml += `  <url>\n`;
+        xml += `    <loc>${SITE_URL}/?category=${encodeURIComponent(cat.id)}</loc>\n`;
+        xml += `    <lastmod>${now}</lastmod>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `    <priority>0.7</priority>\n`;
+        xml += `  </url>\n`;
+      }
+    }
+
+    xml += `</urlset>`;
+    res.type('application/xml').send(xml);
+  } catch (err) {
+    console.error('Sitemap generation error:', err);
+    res.status(500).type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>\n<error>Failed to generate sitemap</error>`);
+  }
+});
+
+// -------------------------------------------------------------
 // VITE SPA MIDDLEWARE / PRODUCTION SERVING
 // -------------------------------------------------------------
 async function startServer() {
